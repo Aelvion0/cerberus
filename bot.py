@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 log = logging.getLogger("cerberus")
 
 # ---------------------------------------------------------------------------
-# Configuration (all via environment variables — never hardcode secrets)
+# Configuration (all via environment variables - never hardcode secrets)
 # ---------------------------------------------------------------------------
 TOKEN = os.environ.get("DISCORD_TOKEN")
 GUILD_ID = int(os.environ.get("GUILD_ID", "0")) or None
@@ -28,10 +28,9 @@ if not TOKEN:
 
 intents = discord.Intents.default()
 intents.members = True  # required to detect joins and manage roles
-intents.message_content = False
+intents.message_content = True  # required for prefix commands like !setup_verify
 
 bot = commands.Bot(command_prefix="!", intents=intents)
-
 
 # ---------------------------------------------------------------------------
 # Verification View (persistent button)
@@ -43,7 +42,7 @@ class VerifyView(discord.ui.View):
         super().__init__(timeout=None)  # persistent view, survives restarts
 
     @discord.ui.button(
-        label="✅ Verify",
+        label="\u2705 Verify",
         style=discord.ButtonStyle.success,
         custom_id="cerberus_verify_button",
     )
@@ -60,7 +59,7 @@ class VerifyView(discord.ui.View):
         role = guild.get_role(VERIFIED_ROLE_ID) if VERIFIED_ROLE_ID else None
         if role is None:
             await interaction.response.send_message(
-                "⚠️ Verification role is not configured yet. Please contact an admin.",
+                "\u26A0\uFE0F Verification role is not configured yet. Please contact an admin.",
                 ephemeral=True,
             )
             log.warning("VERIFIED_ROLE_ID is not set or invalid.")
@@ -68,23 +67,22 @@ class VerifyView(discord.ui.View):
 
         if role in member.roles:
             await interaction.response.send_message(
-                "You're already verified! 🐺", ephemeral=True
+                "You're already verified! \U0001f43a", ephemeral=True
             )
             return
 
         try:
             await member.add_roles(role, reason="Passed Cerberus verification")
             await interaction.response.send_message(
-                f"✅ You've been verified, {member.mention}! Welcome aboard.", ephemeral=True
+                f"\u2705 You've been verified, {member.mention}! Welcome aboard.", ephemeral=True
             )
             log.info("Verified member %s (%s)", member, member.id)
         except discord.Forbidden:
             await interaction.response.send_message(
-                "❌ I don't have permission to assign that role. Please contact an admin.",
+                "\u274C I don't have permission to assign that role. Please contact an admin.",
                 ephemeral=True,
             )
             log.error("Missing permissions to assign role %s to %s", role, member)
-
 
 # ---------------------------------------------------------------------------
 # Events
@@ -93,7 +91,6 @@ class VerifyView(discord.ui.View):
 async def on_ready():
     bot.add_view(VerifyView())  # re-register persistent view after restarts
     log.info("Cerberus is online as %s (ID: %s)", bot.user, bot.user.id)
-
 
 @bot.event
 async def on_member_join(member: discord.Member):
@@ -109,7 +106,7 @@ async def on_member_join(member: discord.Member):
         return
 
     embed = discord.Embed(
-        title="🐺 A new member has arrived!",
+        title="\U0001F43A A new member has arrived!",
         description=(
             f"Welcome to **{member.guild.name}**, {member.mention}!\n\n"
             f"To gain access to the rest of the server, please verify yourself "
@@ -132,7 +129,6 @@ async def on_member_join(member: discord.Member):
     except discord.Forbidden:
         log.error("Missing permission to send welcome message in %s", channel)
 
-
 # ---------------------------------------------------------------------------
 # Slash / prefix command to (re)post the verification panel
 # ---------------------------------------------------------------------------
@@ -141,7 +137,7 @@ async def on_member_join(member: discord.Member):
 async def setup_verify(ctx: commands.Context):
     """Posts the verification embed + button in the current channel. Admin only."""
     embed = discord.Embed(
-        title="🔐 Server Verification",
+        title="\U0001f510 Server Verification",
         description=(
             "Click the button below to verify yourself and unlock access "
             "to the rest of the server."
@@ -151,14 +147,12 @@ async def setup_verify(ctx: commands.Context):
     embed.set_footer(text="Cerberus Guardian Bot")
     await ctx.send(embed=embed, view=VerifyView())
 
-
 @bot.event
 async def on_command_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
-        await ctx.send("❌ You need administrator permissions to run this command.")
+        await ctx.send("\u274C You need administrator permissions to run this command.")
     else:
         log.exception("Command error: %s", error)
-
 
 if __name__ == "__main__":
     bot.run(TOKEN)
